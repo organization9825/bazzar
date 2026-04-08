@@ -137,7 +137,7 @@ export default function Listing() {
             </h1>
             
             <div style={{ fontSize: '36px', fontWeight: '700', color: 'var(--accent)', fontFamily: 'Playfair Display', marginBottom: '24px' }}>
-              ${Number(listing.price).toLocaleString()}
+              ₹{Number(listing.price).toLocaleString()}
             </div>
 
             <div style={{ flex: 1 }}>

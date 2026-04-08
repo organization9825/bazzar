@@ -390,7 +390,7 @@ export default function Dashboard() {
                 <div style={{ marginBottom: '16px' }}>
                   <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: 'var(--ink2)' }}>Price</label>
                   <div style={{ position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: '12px', top: '10px', color: 'var(--ink3)' }}>$</span>
+                    <span style={{ position: 'absolute', left: '12px', top: '10px', color: 'var(--ink3)' }}>₹</span>
                     <input required type="number" step="0.01" value={itemEditData.price} onChange={e => setItemEditData({...itemEditData, price: e.target.value})} style={{ width: '100%', padding: '10px 10px 10px 28px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--ink)' }} />
                   </div>
                 </div>

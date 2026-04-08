@@ -99,7 +99,7 @@ export default function ListingCard({ listing, index = 0 }) {
             fontSize: 17, fontWeight: 700, color: 'var(--accent)',
             flexShrink: 0, fontFamily: 'Playfair Display',
           }}>
-            ${Number(listing.price).toLocaleString()}
+            ₹{Number(listing.price).toLocaleString()}
           </span>
         </div>
 

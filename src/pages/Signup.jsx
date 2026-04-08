@@ -131,7 +131,7 @@ export default function Signup() {
         <div style={{ padding: '48px', position: 'relative', zIndex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 64 }}>
             <img 
-              src="/src/assets/Untitled design.png" 
+              src="/logo.png" 
               alt="Bazaar Logo" 
               style={{ width: 44, height: 44, objectFit: 'contain' }} 
             />

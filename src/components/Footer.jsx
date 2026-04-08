@@ -19,7 +19,7 @@ export default function Footer() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
             <img 
-              src="/src/assets/Untitled design.png" 
+              src="/logo.png" 
               alt="Bazaar Logo" 
               style={{ width: 36, height: 36, objectFit: 'contain' }} 
             />

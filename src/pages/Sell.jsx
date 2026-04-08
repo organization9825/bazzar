@@ -163,7 +163,7 @@ export default function Sell() {
             <div style={{ flex: '1 1 min-content' }}>
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: 'var(--ink2)' }}>Price *</label>
               <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: '16px', top: '12px', color: 'var(--ink3)' }}>$</span>
+                <span style={{ position: 'absolute', left: '16px', top: '12px', color: 'var(--ink3)' }}>₹</span>
                 <input 
                   type="number" 
                   value={price} 

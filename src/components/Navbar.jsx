@@ -184,7 +184,7 @@ export default function Navbar() {
           {/* Logo */}
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, zIndex: 1100, textDecoration: 'none' }}>
             <img 
-              src="/src/assets/Untitled design.png" 
+              src="/logo.png" 
               alt="Bazaar Logo" 
               style={{ width: 40, height: 40, objectFit: 'contain' }} 
             />

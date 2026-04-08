@@ -57,7 +57,7 @@ export default function Login() {
       <div className="auth-panel" style={{ flex: '0 0 420px', background: 'var(--ink)', position: 'relative', overflow: 'hidden', flexDirection: 'column', justifyContent: 'center', padding: 48 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 56 }}>
           <img 
-            src="/src/assets/Untitled design.png" 
+            src="/logo.png" 
             alt="Bazaar Logo" 
             style={{ width: 44, height: 44, objectFit: 'contain' }} 
           />
