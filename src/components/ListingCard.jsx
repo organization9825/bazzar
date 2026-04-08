@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 const CONDITION_COLORS = {
@@ -9,7 +9,7 @@ const CONDITION_COLORS = {
   poor:      { bg: '#F8D7DA', color: '#842029' },
 }
 
-export default function ListingCard({ listing, index = 0 }) {
+const ListingCard = memo(function ListingCard({ listing, index = 0 }) {
   const [hovered, setHovered] = useState(false)
   const navigate = useNavigate()
 
@@ -38,13 +38,15 @@ export default function ListingCard({ listing, index = 0 }) {
         background: 'var(--bg2)', position: 'relative', overflow: 'hidden',
       }}>
         {primaryImage ? (
-          <img
-            src={primaryImage.public_url}
+          <img 
+            src={primaryImage.public_url} 
             alt={listing.title}
+            loading="lazy"
             style={{
-              width: '100%', height: '100%', objectFit: 'cover',
-              transform: hovered ? 'scale(1.06)' : 'scale(1)',
-              transition: 'transform 0.4s ease',
+              width: '100%', height: '100%',
+              objectFit: 'cover',
+              transition: 'transform 0.5s ease',
+              transform: hovered ? 'scale(1.08)' : 'scale(1)',
             }}
           />
         ) : (
@@ -145,4 +147,6 @@ export default function ListingCard({ listing, index = 0 }) {
       </div>
     </div>
   )
-}
+})
+
+export default ListingCard

@@ -95,22 +95,40 @@ export default function Signup() {
       })
       if (error) throw error
 
-      // Update profile with extra info
-      if (data.user) {
-        await supabase.from('profiles').update({
-          full_name: form.fullName,
-          bio: form.bio || null,
-          city: form.city || null,
-          lat: form.lat ? parseFloat(form.lat) : null,
-          lng: form.lng ? parseFloat(form.lng) : null,
-        }).eq('id', data.user.id)
+      // If email confirmation is ON, session will be null
+      if (data.user && !data.session) {
+        setStep(100) // Special value for verification message
+        return
       }
+
       navigate('/?welcome=1')
     } catch (err) {
       setGlobalError(err.message || 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }
+  }
+
+  // ─── Verification Screen ────────────────────────────────────
+  if (step === 100) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: '24px' }}>
+        <div style={{ background: 'var(--card)', padding: '48px', borderRadius: '24px', border: '1px solid var(--border)', maxWidth: '440px', width: '100%', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize: '64px', marginBottom: '24px' }}>📧</div>
+          <h2 style={{ fontSize: '28px', fontFamily: 'Playfair Display', color: 'var(--ink)', marginBottom: '16px' }}>Verify your email</h2>
+          <p style={{ color: 'var(--ink3)', lineHeight: 1.6, marginBottom: '32px', fontSize: '16px' }}>
+            We've sent a confirmation link to <strong style={{ color: 'var(--ink)' }}>{form.email}</strong>. 
+            Please check your inbox (and spam folder) to activate your account.
+          </p>
+          <button 
+            onClick={() => navigate('/login')}
+            style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--accent)', color: 'white', border: 'none', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }}
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    )
   }
 
   const progressPct = ((step) / STEPS.length) * 100

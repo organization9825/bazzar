@@ -21,13 +21,20 @@ function fmtTime(ts) {
 
 // ─── Styles ───────────────────────────────────────────────────
 const styles = `
-  .inbox-wrap { display:flex; height:calc(100vh - 64px); overflow:hidden; background:var(--bg); }
+  .inbox-wrap { 
+    display:flex; 
+    height:calc(100vh - 64px); 
+    overflow:hidden; 
+    background:var(--bg); 
+    position: relative;
+    width: 100%;
+  }
 
   /* Sidebar */
   .inbox-sidebar {
     width:340px; flex-shrink:0; display:flex; flex-direction:column;
     background:var(--card); border-right:1px solid var(--border);
-    transition:transform 0.25s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .sidebar-header {
     padding:20px 20px 16px; background:var(--card);
@@ -138,15 +145,34 @@ const styles = `
   @keyframes slideUp  { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
 
   /* Mobile */
-  @media(max-width:640px) {
-    .inbox-sidebar.hidden { display:none; }
-    .inbox-sidebar { width:100%; }
-    .chat-window.hidden { display:none; }
+  @media(max-width:768px) {
+    .inbox-sidebar { 
+      width:100% !important; 
+      position: absolute;
+      top: 0; left: 0; bottom: 0;
+      z-index: 10;
+    }
+    .inbox-sidebar.hidden { 
+      transform: translateX(-100%);
+      pointer-events: none;
+    }
+    .chat-window { 
+      width:100% !important; 
+      position: absolute;
+      top: 0; left: 0; bottom: 0;
+      z-index: 5;
+      background: var(--bg);
+    }
+    .chat-window.hidden { 
+      display: none !important;
+    }
+    .back-btn { display: flex !important; margin-right: 8px; }
   }
-  @media(min-width:641px) {
-    .inbox-sidebar { display:flex !important; }
-    .chat-window { display:flex !important; }
+  @media(min-width:769px) {
+    .inbox-sidebar { transform: none !important; }
+    .back-btn { display: none !important; }
   }
+
 `
 
 // ─── Avatar helper ────────────────────────────────────────────
@@ -209,7 +235,7 @@ function ChatWindow({ chat, me, myKeys, onBack, onMarkRead }) {
   const [loading,   setLoading]   = useState(true)
   const [sending,   setSending]   = useState(false)
   const [keyError,  setKeyError]  = useState(false)
-  const bottomRef = useRef(null)
+  const areaRef   = useRef(null)
   const subRef    = useRef(null)
 
   const other = chat.buyer.id === me.id ? chat.seller : chat.buyer
@@ -259,7 +285,11 @@ function ChatWindow({ chat, me, myKeys, onBack, onMarkRead }) {
     return () => { cancelled = true; subRef.current?.unsubscribe() }
   }, [chat.id, myKeys])
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+  useEffect(() => { 
+    if (areaRef.current) {
+      areaRef.current.scrollTop = areaRef.current.scrollHeight
+    }
+  }, [messages])
 
   const send = async (e) => {
     e?.preventDefault()
@@ -298,7 +328,7 @@ function ChatWindow({ chat, me, myKeys, onBack, onMarkRead }) {
       </div>
 
       {/* Messages */}
-      <div className="messages-area">
+      <div className="messages-area" ref={areaRef}>
         {loading ? (
           <div style={{ textAlign: 'center', color: 'var(--ink3)', paddingTop: 48, fontSize: 14 }}>Loading messages…</div>
         ) : keyError ? (
@@ -317,7 +347,6 @@ function ChatWindow({ chat, me, myKeys, onBack, onMarkRead }) {
         ) : (
           messages.map(m => <Bubble key={m.id} text={m.text} isMine={m.sender_id === me.id} time={m.created_at} />)
         )}
-        <div ref={bottomRef} />
       </div>
 
       {/* Input */}
@@ -460,6 +489,10 @@ export default function Inbox() {
       }
     }
 
+    // Prevent sub-header scrolling issues on load
+    if (window.innerWidth <= 768) {
+      window.scrollTo(0, 0)
+    }
     init()
     return () => globalSubRef.current?.unsubscribe()
   }, [navigate, openChatId])
