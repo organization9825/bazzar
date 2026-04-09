@@ -2,242 +2,137 @@ import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
+const Input = ({ label, type = 'text', value, onChange, placeholder, required, hint, error, icon, trailingIcon }) => {
+  const [focused, setFocused] = useState(false)
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--ink2)', marginBottom: 8 }}>
+        {label} {required && <span style={{ color: 'var(--accent)' }}>*</span>}
+      </label>
+      <div style={{
+        display: 'flex', alignItems: 'center',
+        border: `1.5px solid ${error ? '#da3f3f' : focused ? 'var(--accent)' : 'var(--border)'}`,
+        borderRadius: 12, background: 'var(--card)',
+        transition: 'all 0.2s',
+        boxShadow: focused ? '0 0 0 3px rgba(212,98,42,0.1)' : 'none',
+        position: 'relative'
+      }}>
+        {icon && <span style={{ padding: '0 12px', color: 'var(--ink3)' }}>{icon}</span>}
+        <input
+          type={type} value={value} onChange={onChange}
+          placeholder={placeholder} required={required}
+          onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+          style={{
+            flex: 1, padding: trailingIcon ? '14px 44px 14px 16px' : '14px 16px',
+            border: 'none', background: 'transparent',
+            fontSize: 15, color: 'var(--ink)', outline: 'none',
+          }}
+        />
+        {trailingIcon && (
+          <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', display: 'flex' }}>
+            {trailingIcon}
+          </div>
+        )}
+      </div>
+      {hint && !error && <p style={{ fontSize: 12, color: 'var(--ink3)', marginTop: 6 }}>{hint}</p>}
+      {error && <p style={{ fontSize: 12, color: '#da3f3f', marginTop: 6 }}>{error}</p>}
+    </div>
+  )
+}
+
 export default function Login() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [showPassword, setShowPassword] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
-  const from = location.state?.from || '/'
-
-  const [email, setEmail]           = useState('')
-  const [password, setPassword]     = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [loading, setLoading]       = useState(false)
-  const [error, setError]           = useState('')
-  const [mode, setMode]             = useState('login')   // 'login' | 'forgot'
-  const [resetSent, setResetSent]   = useState(false)
-  const [emailFocused, setEmailFocused]   = useState(false)
-  const [passFocused, setPassFocused]     = useState(false)
+  const message = location.state?.message
 
   const handleLogin = async (e) => {
     e.preventDefault()
-    if (!email || !password) { setError('Please fill in all fields.'); return }
-    setLoading(true); setError('')
-    try {
-      const { error: err } = await supabase.auth.signInWithPassword({ email, password })
-      if (err) throw err
-      navigate(from, { replace: true })
-    } catch (err) {
-      setError(err.message || 'Login failed. Please check your credentials.')
-    } finally {
+    setLoading(true)
+    setError(null)
+    const { error: err } = await supabase.auth.signInWithPassword({ email, password })
+    if (err) {
+      setError(err.message)
       setLoading(false)
-    }
-  }
-
-  const handleReset = async (e) => {
-    e.preventDefault()
-    if (!email) { setError('Please enter your email address.'); return }
-    setLoading(true); setError('')
-    try {
-      const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      })
-      if (err) throw err
-      setResetSent(true)
-    } catch (err) {
-      setError(err.message || 'Could not send reset email.')
-    } finally {
-      setLoading(false)
+    } else {
+      navigate('/')
     }
   }
 
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex', background: 'var(--bg)',
-    }}>
-      {/* Left decorative panel */}
-      <div className="auth-panel" style={{ flex: '0 0 420px', background: 'var(--ink)', position: 'relative', overflow: 'hidden', flexDirection: 'column', justifyContent: 'center', padding: 48 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 56 }}>
-          <img 
-            src="/logo.png" 
-            alt="Bazaar Logo" 
-            style={{ width: 44, height: 44, objectFit: 'contain' }} 
-          />
-          <span style={{ fontFamily: 'Playfair Display', fontWeight: 700, fontSize: 24, color: 'white' }}>Bazaar</span>
+    <div style={{ minHeight: '100vh', display: 'flex', background: 'var(--bg)', color: 'var(--ink)' }}>
+      <style>{`
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-in { animation: fadeUp 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        @media (max-width: 850px) { .side-panel { display: none !important; } .form-panel { flex: 1 !important; padding: 32px 24px !important; } }
+      `}</style>
+
+      {/* Side Panel - Consistent with Signup */}
+      <div className="side-panel" style={{ flex: '0 0 440px', background: 'var(--bg2)', padding: 64, display: 'flex', flexDirection: 'column', justifyContent: 'center', borderRight: '1px solid var(--border)' }}>
+        <div style={{ marginBottom: 32 }}>
+          <img src="/logo.png" alt="Bazaar" style={{ width: 48, height: 48, marginBottom: 24 }} />
+          <h1 style={{ fontSize: 44, fontWeight: 700, lineHeight: 1.1, marginBottom: 16 }}>Welcome back.</h1>
+          <p style={{ fontSize: 17, color: 'var(--ink3)', lineHeight: 1.6 }}>Your local community is waiting. Sign in to continue your journey.</p>
         </div>
-
-        <h2 style={{ fontFamily: 'Playfair Display', fontSize: 34, color: 'white', lineHeight: 1.2, marginBottom: 16 }}>
-          Welcome back
-        </h2>
-        <p style={{ color: '#A09890', fontSize: 16, lineHeight: 1.7, marginBottom: 48 }}>
-          Sign in to browse listings, manage your items, and connect with local buyers and sellers.
-        </p>
-
-        {/* Testimonial card */}
         <div style={{
-          background: 'rgba(255,255,255,0.06)', borderRadius: 14,
-          border: '1px solid rgba(255,255,255,0.1)', padding: '20px 24px',
+          marginTop: '64px', background: 'var(--card)', padding: '24px', borderRadius: 16, border: '1px solid var(--border)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
         }}>
-          <p style={{ color: '#D4C4B8', fontSize: 14, lineHeight: 1.7, fontStyle: 'italic', marginBottom: 16 }}>
-            "Sold my old laptop in two days. The map feature made it so easy to meet up locally."
+          <p style={{ color: 'var(--ink2)', fontSize: 14, fontStyle: 'italic', lineHeight: 1.6, marginBottom: 16 }}>
+            "Found exactly what I needed at a fraction of the store price. Fast and easy."
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: 'white' }}>R</div>
-            <div>
-              <p style={{ color: 'white', fontSize: 14, fontWeight: 500 }}>Ravi K.</p>
-              <p style={{ color: '#A09890', fontSize: 12 }}>Seller from Lalitpur</p>
-            </div>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>A</div>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>Amit S.</span>
           </div>
         </div>
-
-        <div style={{ position: 'absolute', bottom: -100, right: -100, width: 400, height: 400, borderRadius: '50%', background: 'rgba(212,98,42,0.07)' }} />
       </div>
 
-      {/* Right — form */}
-      <div style={{
-        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '48px 24px',
-      }}>
-        <div style={{ width: '100%', maxWidth: 420 }}>
+      {/* Main Panel */}
+      <div className="form-panel" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px' }}>
+        <div className="animate-in" style={{ width: '100%', maxWidth: 400 }}>
+          <h2 style={{ fontSize: 32, marginBottom: 8 }}>Sign in</h2>
+          <p style={{ color: 'var(--ink3)', marginBottom: 32 }}>Access your account to continue.</p>
 
-          {/* Reset sent confirmation */}
-          {resetSent ? (
-            <div style={{ textAlign: 'center', animation: 'fadeUp 0.4s ease' }}>
-              <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'var(--green-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M6 16L13 23L26 9" stroke="var(--green)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              </div>
-              <h2 style={{ fontFamily: 'Playfair Display', fontSize: 26, marginBottom: 10 }}>Check your email</h2>
-              <p style={{ color: 'var(--ink3)', fontSize: 15, lineHeight: 1.6, marginBottom: 28 }}>
-                We sent a password reset link to <strong style={{ color: 'var(--ink)' }}>{email}</strong>.
-              </p>
-              <button onClick={() => { setMode('login'); setResetSent(false) }} style={{
-                padding: '12px 28px', borderRadius: 10, background: 'var(--accent)', color: 'white', border: 'none', fontSize: 15, fontWeight: 600,
-              }}>Back to sign in</button>
-            </div>
-          ) : (
-            <>
-              <div style={{ marginBottom: 32, animation: 'slideDown 0.4s ease' }}>
-                <h1 style={{ fontSize: 30, fontFamily: 'Playfair Display', marginBottom: 6 }}>
-                  {mode === 'login' ? 'Sign in' : 'Reset password'}
-                </h1>
-                <p style={{ fontSize: 15, color: 'var(--ink3)' }}>
-                  {mode === 'login' ? 'Enter your email and password to continue.' : 'Enter your email and we\'ll send a reset link.'}
-                </p>
-              </div>
+          {message && <div style={{ padding: '12px 16px', background: 'var(--accent-bg)', color: 'var(--accent)', borderRadius: 10, fontSize: 14, marginBottom: 24, fontWeight: 500 }}>{message}</div>}
+          {error && <div style={{ padding: '12px 16px', background: '#FDF2F2', border: '1px solid #F8D7DA', color: '#da3f3f', borderRadius: 10, fontSize: 13, marginBottom: 24 }}>{error}</div>}
 
-              {error && (
-                <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 10, padding: '12px 16px', marginBottom: 20, animation: 'slideDown 0.3s ease' }}>
-                  <p style={{ color: '#DC2626', fontSize: 14 }}>{error}</p>
-                </div>
-              )}
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column' }}>
+            <Input label="Email address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="john@example.com" required />
 
-              <form onSubmit={mode === 'login' ? handleLogin : handleReset} style={{ animation: 'slideDown 0.35s ease' }} key={mode}>
-
-                {/* Email */}
-                <div style={{ marginBottom: 18 }}>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--ink2)', marginBottom: 6 }}>Email address</label>
-                  <div style={{
-                    display: 'flex', alignItems: 'center',
-                    border: `1.5px solid ${emailFocused ? 'var(--accent)' : 'var(--border)'}`,
-                    borderRadius: 10, background: 'var(--card)',
-                    boxShadow: emailFocused ? '0 0 0 3px rgba(212,98,42,0.1)' : 'none',
-                    transition: 'all 0.2s',
-                  }}>
-                    <span style={{ padding: '0 14px', color: 'var(--ink3)' }}>
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.4"/><path d="M1 5L8 9L15 5" stroke="currentColor" strokeWidth="1.4"/></svg>
-                    </span>
-                    <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required
-                      onFocus={() => setEmailFocused(true)} onBlur={() => setEmailFocused(false)}
-                      style={{ flex: 1, padding: '14px 14px 14px 0', border: 'none', background: 'transparent', fontSize: 15, color: 'var(--ink)', outline: 'none' }}
-                    />
-                  </div>
-                </div>
-
-                {/* Password */}
-                {mode === 'login' && (
-                  <div style={{ marginBottom: 8 }}>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--ink2)', marginBottom: 6 }}>Password</label>
-                    <div style={{
-                      display: 'flex', alignItems: 'center',
-                      border: `1.5px solid ${passFocused ? 'var(--accent)' : 'var(--border)'}`,
-                      borderRadius: 10, background: 'var(--card)',
-                      boxShadow: passFocused ? '0 0 0 3px rgba(212,98,42,0.1)' : 'none',
-                      transition: 'all 0.2s',
-                    }}>
-                      <span style={{ padding: '0 14px', color: 'var(--ink3)' }}>
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
-                      </span>
-                      <input type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="Your password" required
-                        onFocus={() => setPassFocused(true)} onBlur={() => setPassFocused(false)}
-                        style={{ flex: 1, padding: '14px 0', border: 'none', background: 'transparent', fontSize: 15, color: 'var(--ink)', outline: 'none' }}
-                      />
-                      <button type="button" onClick={() => setShowPassword(v => !v)}
-                        style={{ padding: '0 14px', background: 'none', border: 'none', color: 'var(--ink3)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
-                        {showPassword ? 'Hide' : 'Show'}
-                      </button>
-                    </div>
-                    <div style={{ textAlign: 'right', marginTop: 8 }}>
-                      <button type="button" onClick={() => { setMode('forgot'); setError('') }}
-                        style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
-                        Forgot password?
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <button type="submit" disabled={loading} style={{
-                  width: '100%', padding: '15px', borderRadius: 10, marginTop: 12,
-                  background: loading ? 'var(--border)' : 'var(--accent)', color: 'white',
-                  border: 'none', fontSize: 16, fontWeight: 600,
-                  transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                }}>
-                  {loading ? (
-                    <><div style={{ width: 18, height: 18, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-                    {mode === 'login' ? 'Signing in…' : 'Sending…'}</>
-                  ) : mode === 'login' ? 'Sign in →' : 'Send reset link →'}
+            <Input
+              label="Password"
+              type={showPassword ? "text" : "password"}
+              value={password} onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••" required
+              trailingIcon={
+                <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ background: 'none', border: 'none', padding: 4, cursor: 'pointer', color: 'var(--ink3)' }}>
+                  {showPassword ? '🐵' : '🙈'}
                 </button>
+              }
+            />
 
-                {mode === 'forgot' && (
-                  <button type="button" onClick={() => { setMode('login'); setError('') }} style={{
-                    width: '100%', padding: '12px', marginTop: 10, borderRadius: 10,
-                    border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--ink2)',
-                    fontSize: 15, fontWeight: 500, cursor: 'pointer',
-                  }}>← Back to sign in</button>
-                )}
-              </form>
+            <div style={{ textAlign: 'right', marginTop: -10, marginBottom: 24 }}>
+              <Link to="/reset-password" style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>Forgot password?</Link>
+            </div>
 
-              {/* Divider */}
-              {mode === 'login' && (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '24px 0' }}>
-                    <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-                    <span style={{ fontSize: 13, color: 'var(--ink3)' }}>or</span>
-                    <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-                  </div>
+            <button
+              disabled={loading}
+              style={{ width: '100%', padding: '16px', borderRadius: 14, background: 'var(--accent)', color: 'white', fontSize: 16, fontWeight: 700, border: 'none', transition: 'all 0.2s', opacity: loading ? 0.7 : 1 }}
+            >
+              {loading ? 'Signing in...' : 'Sign in'}
+            </button>
+          </form>
 
-                  <Link to="/signup" style={{ display: 'block' }}>
-                    <div style={{
-                      width: '100%', padding: '14px', borderRadius: 10, textAlign: 'center',
-                      border: '1.5px solid var(--border)', background: 'var(--card)',
-                      color: 'var(--ink)', fontSize: 15, fontWeight: 500, transition: 'all 0.2s',
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent2)'}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
-                    >
-                      Create a new account
-                    </div>
-                  </Link>
-                </>
-              )}
-
-              <p style={{ textAlign: 'center', marginTop: 32, fontSize: 13, color: 'var(--ink3)', lineHeight: 1.5 }}>
-                By signing in, you agree to our <Link to="/privacy" style={{ color: 'var(--accent)', fontWeight: 500 }}>Privacy Policy</Link>.<br/>
-                Your messages are end-to-end encrypted.
-              </p>
-            </>
-          )}
+          <div style={{ marginTop: 40, textAlign: 'center', fontSize: 14, color: 'var(--ink3)' }}>
+            Don't have an account? <Link to="/signup" style={{ color: 'var(--accent)', fontWeight: 600 }}>Sign up for free</Link>
+          </div>
         </div>
       </div>
-
-      <style>{`.auth-panel { display: flex !important; } @media (max-width: 900px) { .auth-panel { display: none !important; } }`}</style>
     </div>
   )
 }

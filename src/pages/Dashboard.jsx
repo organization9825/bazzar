@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { getProfile, getMyListings, updateProfile, markAsSold, markAsActive, deleteListing, updateListing } from '../lib/supabase'
+import { supabase, signOut, getProfile, getMyListings, updateProfile, markAsSold, markAsActive, deleteListing, updateListing } from '../lib/supabase'
 import ListingCard from '../components/ListingCard'
 import { useAuth } from '../context/AuthContext'
 
@@ -8,14 +8,17 @@ export default function Dashboard() {
   const { user } = useAuth()
   const [profile, setProfile] = useState(null)
   const [listings, setListings] = useState([])
-  
+
   const [loading, setLoading] = useState(true)
   const [editingProfile, setEditingProfile] = useState(false)
   const [editData, setEditData] = useState({ full_name: '', bio: '', city: '' })
-  
+
   const [editingItem, setEditingItem] = useState(null)
-  const [itemEditData, setItemEditData] = useState({ title: '', description: '', price: '' })
-  
+  const [itemEditData, setItemEditData] = useState({ title: '', description: '', price: 0 })
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [confirmName, setConfirmName] = useState('')
+  const [deleting, setDeleting] = useState(false)
+
   const navigate = useNavigate()
   const location = useLocation()
   const [message, setMessage] = useState(location.state?.message || null)
@@ -38,17 +41,27 @@ export default function Dashboard() {
         navigate('/login')
         return
       }
+      if (!user.email_confirmed_at) {
+        navigate('/signup', { state: { email: user.email } })
+        return
+      }
       try {
         const [profData, myItems] = await Promise.all([
           getProfile(user.id),
           getMyListings(user.id)
         ])
-        
+
+        if (!profData?.full_name) {
+          navigate('/setup-profile')
+          return
+        }
+
         setProfile(profData)
-        setEditData({ 
-          full_name: profData.full_name || '', 
-          bio: profData.bio || '', 
-          city: profData.city || '' 
+        setEditData({
+          full_name: profData.full_name || '',
+          bio: profData.bio || '',
+          city: profData.city || '',
+          phone: profData.phone || ''
         })
         setListings(myItems)
       } catch (err) {
@@ -62,6 +75,10 @@ export default function Dashboard() {
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault()
+    if (editData.phone && !/^[0-9]{10,15}$/.test(editData.phone)) {
+      setMessage('Invalid phone number (10-15 digits)')
+      return
+    }
     try {
       const updated = await updateProfile(user.id, editData)
       setProfile(updated)
@@ -90,32 +107,64 @@ export default function Dashboard() {
     }
   }
 
+  const handleDeleteProfile = async (e) => {
+    e.preventDefault()
+    if (confirmName.trim() !== profile.full_name) {
+      alert('Name does not match. Please type your full name correctly.')
+      return
+    }
+
+    setDeleting(true)
+    try {
+      // 1. Delete profile from public table
+      const { error } = await supabase.from('profiles').delete().eq('id', user.id)
+      if (error) throw error
+
+      // 2. Sign out
+      await signOut()
+      navigate('/login', { state: { message: 'Your profile has been deleted successfully.' } })
+    } catch (err) {
+      console.error(err)
+      alert('Failed to delete profile: ' + err.message)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this listing?')) {
+      const oldListings = [...listings]
+      // Optimistic update
+      setListings(prev => prev.filter(l => l.id !== id))
+      setMessage('Removing listing...')
+      
       try {
         await deleteListing(id)
-        setListings(listings.filter(l => l.id !== id))
         setMessage('Listing deleted successfully!')
       } catch (err) {
         console.error(err)
-        setMessage('Failed to delete listing.')
+        setListings(oldListings) // Rollback
+        setMessage('Failed to delete listing. Please try again.')
       }
     }
   }
 
   const handleToggleSold = async (id, currentStatus) => {
+    const oldListings = [...listings]
+    // Optimistic update
+    setListings(prev => prev.map(l => l.id === id ? { ...l, is_sold: !currentStatus } : l))
+    
     try {
       if (currentStatus) {
         await markAsActive(id)
-        setListings(listings.map(l => l.id === id ? { ...l, is_sold: false } : l))
         setMessage('Listing marked as active!')
       } else {
         await markAsSold(id)
-        setListings(listings.map(l => l.id === id ? { ...l, is_sold: true } : l))
         setMessage('Listing marked as sold!')
       }
     } catch (err) {
       console.error('Toggle Sold Error:', err)
+      setListings(oldListings) // Rollback
       setMessage(`Update failed: ${err.message || 'Check your permissions.'}`)
     }
   }
@@ -126,33 +175,33 @@ export default function Dashboard() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: '40px 24px' }}>
       <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-        
+
         {message && (
-          <div style={{ 
-            background: 'var(--accent-bg)', 
-            color: 'var(--accent)', 
-            padding: '16px', 
-            borderRadius: '12px', 
+          <div style={{
+            background: 'var(--accent-bg)',
+            color: 'var(--accent)',
+            padding: '16px',
+            borderRadius: '12px',
             marginBottom: '24px',
-            border: '1px solid rgba(212,98,42,0.2)' 
+            border: '1px solid rgba(212,98,42,0.2)'
           }}>
             {message}
           </div>
         )}
 
         {/* Profile Card */}
-        <div style={{ 
-          background: 'var(--card)', 
-          padding: '32px', 
-          borderRadius: '16px', 
-          border: '1px solid var(--border)', 
+        <div style={{
+          background: 'var(--card)',
+          padding: '32px',
+          borderRadius: '16px',
+          border: '1px solid var(--border)',
           boxShadow: 'var(--shadow)',
           marginBottom: '32px',
           transition: 'all 0.3s ease',
           animation: 'fadeUp 0.4s ease'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '24px' }}>
-            
+
             <div style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap' }}>
               {/* Avatar Clickable Upload */}
               <label style={{ position: 'relative', cursor: 'pointer', display: 'inline-block' }} title="Click to update picture">
@@ -162,9 +211,9 @@ export default function Dashboard() {
                     transition: 'opacity 0.2s'
                   }} onMouseEnter={e => e.currentTarget.style.opacity = '0.8'} onMouseLeave={e => e.currentTarget.style.opacity = '1'} />
                 ) : (
-                  <div style={{ 
-                    width: '80px', height: '80px', borderRadius: '50%', 
-                    background: 'var(--accent)', 
+                  <div style={{
+                    width: '80px', height: '80px', borderRadius: '50%',
+                    background: 'var(--accent)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: 'white', fontSize: '32px', fontWeight: 'bold',
                     transition: 'opacity 0.2s'
@@ -172,8 +221,8 @@ export default function Dashboard() {
                     {profile.full_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase()}
                   </div>
                 )}
-                
-                <input 
+
+                <input
                   type="file" accept="image/*"
                   style={{ display: 'none' }}
                   onChange={async (e) => {
@@ -206,10 +255,10 @@ export default function Dashboard() {
                         const compressed = await compressImage(file)
                         const { uploadAvatar } = await import('../lib/supabase')
                         const url = await uploadAvatar(user.id, compressed)
-                        
+
                         // Immediately save to profile database
                         await updateProfile(user.id, { avatar_url: url })
-                        
+
                         setProfile({ ...profile, avatar_url: url })
                         setEditData({ ...editData, avatar_url: url })
                         setMessage('Profile picture updated successfully!')
@@ -235,11 +284,11 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <button 
+            <button
               onClick={() => setEditingProfile(!editingProfile)}
               style={{
-                padding: '8px 16px', borderRadius: '8px', 
-                border: '1px solid var(--border)', background: 'var(--bg)', 
+                padding: '8px 16px', borderRadius: '8px',
+                border: '1px solid var(--border)', background: 'var(--bg)',
                 color: 'var(--ink)', fontSize: '14px', fontWeight: '500',
                 cursor: 'pointer', transition: 'all 0.2s',
               }}
@@ -256,31 +305,38 @@ export default function Dashboard() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '20px' }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: 'var(--ink2)' }}>Full Name</label>
-                  <input 
-                    type="text" value={editData.full_name} onChange={e => setEditData({...editData, full_name: e.target.value})}
+                  <input
+                    type="text" value={editData.full_name} onChange={e => setEditData({ ...editData, full_name: e.target.value })}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--ink)' }}
                   />
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: 'var(--ink2)' }}>City / Location</label>
-                  <input 
-                    type="text" value={editData.city} onChange={e => setEditData({...editData, city: e.target.value})}
+                  <input
+                    type="text" value={editData.city} onChange={e => setEditData({ ...editData, city: e.target.value })}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--ink)' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: 'var(--ink2)' }}>Phone Number</label>
+                  <input
+                    type="tel" value={editData.phone} onChange={e => setEditData({ ...editData, phone: e.target.value })}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--ink)' }}
                   />
                 </div>
               </div>
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: 'var(--ink2)' }}>Bio</label>
-                <textarea 
-                  rows={3} value={editData.bio} onChange={e => setEditData({...editData, bio: e.target.value})}
+                <textarea
+                  rows={3} value={editData.bio} onChange={e => setEditData({ ...editData, bio: e.target.value })}
                   style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--ink)' }}
                 />
               </div>
-              <button 
+              <button
                 type="submit"
                 style={{
-                  padding: '10px 24px', borderRadius: '8px', 
-                  background: 'var(--accent)', color: 'white', 
+                  padding: '10px 24px', borderRadius: '8px',
+                  background: 'var(--accent)', color: 'white',
                   border: 'none', fontSize: '14px', fontWeight: '600',
                   cursor: 'pointer', transition: 'all 0.2s',
                 }}
@@ -297,7 +353,7 @@ export default function Dashboard() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
             <h2 style={{ fontSize: '20px', fontFamily: 'Playfair Display', color: 'var(--ink)' }}>My Listings ({listings.length})</h2>
-            <button 
+            <button
               onClick={() => navigate('/sell')}
               style={{ padding: '8px 16px', borderRadius: '8px', background: 'var(--accent-bg)', color: 'var(--accent)', border: 'none', fontWeight: '600', cursor: 'pointer' }}
             >
@@ -308,7 +364,7 @@ export default function Dashboard() {
           {listings.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '64px 24px', background: 'var(--bg2)', borderRadius: '16px', border: '1px dashed var(--border)' }}>
               <p style={{ color: 'var(--ink3)', marginBottom: '16px' }}>You haven't posted any items yet.</p>
-              <button 
+              <button
                 onClick={() => navigate('/sell')}
                 style={{ padding: '10px 24px', borderRadius: '8px', background: 'var(--accent)', color: 'white', border: 'none', fontWeight: '600', cursor: 'pointer' }}
               >
@@ -319,8 +375,8 @@ export default function Dashboard() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '24px' }}>
               {listings.map((listing, i) => (
                 <div key={listing.id} style={{ position: 'relative' }}>
-                  <ListingCard listing={{...listing, seller: profile}} index={i} />
-                  
+                  <ListingCard listing={{ ...listing, seller: profile }} index={i} />
+
                   {/* Action Overlay / Tags */}
                   {listing.is_sold && (
                     <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(28,26,23,0.85)', color: 'white', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold', zIndex: 2 }}>
@@ -331,7 +387,7 @@ export default function Dashboard() {
                   <div style={{ display: 'flex', gap: '8px', marginTop: '12px', padding: '0 4px', position: 'relative', zIndex: 10 }}>
                     {!listing.is_sold ? (
                       <>
-                        <button 
+                        <button
                           onClick={() => {
                             setEditingItem(listing)
                             setItemEditData({ title: listing.title, description: listing.description || '', price: listing.price })
@@ -342,7 +398,7 @@ export default function Dashboard() {
                         >
                           Edit
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleToggleSold(listing.id, listing.is_sold)}
                           style={{ flex: 1, padding: '8px', borderRadius: '8px', background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--ink)', fontSize: '13px', fontWeight: '500', cursor: 'pointer', transition: 'background 0.2s' }}
                           onMouseEnter={e => e.currentTarget.style.background = 'var(--border)'}
@@ -352,7 +408,7 @@ export default function Dashboard() {
                         </button>
                       </>
                     ) : (
-                      <button 
+                      <button
                         onClick={() => handleToggleSold(listing.id, listing.is_sold)}
                         style={{ flex: 1, padding: '8px', borderRadius: '8px', background: '#EAF4EF', border: '1px solid #b7dfca', color: '#2D6A4F', fontSize: '13px', fontWeight: '500', cursor: 'pointer', transition: 'all 0.2s' }}
                         onMouseEnter={e => { e.currentTarget.style.background = '#d4ebe0' }}
@@ -361,7 +417,7 @@ export default function Dashboard() {
                         Unmark Sold
                       </button>
                     )}
-                    <button 
+                    <button
                       onClick={() => handleDelete(listing.id)}
                       style={{ flex: listing.is_sold ? 1 : 0.8, padding: '8px', borderRadius: '8px', background: '#ffebee', border: '1px solid #ffcdd2', color: '#c62828', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}
                     >
@@ -372,7 +428,65 @@ export default function Dashboard() {
               ))}
             </div>
           )}
+
+          {/* Dangerous Zone */}
+          <div style={{ marginTop: '64px', paddingTop: '32px', borderTop: '1px solid var(--border)' }}>
+            <h3 style={{ fontSize: '18px', color: '#DA3F3F', marginBottom: '8px' }}>Danger Zone</h3>
+            <p style={{ fontSize: '14px', color: 'var(--ink3)', marginBottom: '20px' }}>Once you delete your profile, there is no going back. Please be certain.</p>
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              style={{ padding: '12px 24px', borderRadius: '10px', background: 'none', border: '1.5px solid #F8D7DA', color: '#DA3F3F', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#FDF2F2' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
+            >
+              Delete Profile
+            </button>
+          </div>
         </div>
+
+        {/* Delete Profile Modal */}
+        {showDeleteModal && (
+          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '24px' }}>
+            <div style={{ background: 'var(--card)', padding: '40px', borderRadius: '24px', width: '100%', maxWidth: '440px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', animation: 'fadeUp 0.3s ease' }}>
+              <h2 style={{ fontSize: '24px', color: 'var(--ink)', marginBottom: '12px' }}>Delete Profile?</h2>
+              <p style={{ color: 'var(--ink3)', fontSize: '15px', lineHeight: '1.6', marginBottom: '24px' }}>
+                This will permanently remove your profile and personal data. To confirm, please type your full name: <strong style={{ color: 'var(--ink)' }}>{profile.full_name}</strong>
+              </p>
+
+              <form onSubmit={handleDeleteProfile}>
+                <input
+                  autoFocus
+                  required
+                  type="text"
+                  value={confirmName}
+                  onChange={e => setConfirmName(e.target.value)}
+                  placeholder="Type your name here"
+                  style={{ width: '100%', padding: '16px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg2)', color: 'var(--ink)', fontSize: '16px', outline: 'none', marginBottom: '24px', transition: 'border-color 0.2s' }}
+                  onFocus={e => e.target.style.borderColor = '#DA3F3F'}
+                  onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                />
+
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    type="button"
+                    onClick={() => { setShowDeleteModal(false); setConfirmName('') }}
+                    disabled={deleting}
+                    style={{ flex: 1, padding: '14px', borderRadius: '12px', background: 'var(--bg2)', color: 'var(--ink)', border: 'none', fontWeight: '600', cursor: 'pointer' }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={deleting || confirmName.trim() !== profile.full_name}
+                    style={{ flex: 1, padding: '14px', borderRadius: '12px', background: '#DA3F3F', color: 'white', border: 'none', fontWeight: '700', cursor: 'pointer', opacity: (deleting || confirmName.trim() !== profile.full_name) ? 0.5 : 1 }}
+                  >
+                    {deleting ? 'Deleting...' : 'Delete Profile'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Item Edit Modal */}
         {editingItem && (
@@ -385,18 +499,18 @@ export default function Dashboard() {
               <form onSubmit={handleUpdateListing}>
                 <div style={{ marginBottom: '16px' }}>
                   <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: 'var(--ink2)' }}>Title</label>
-                  <input required type="text" value={itemEditData.title} onChange={e => setItemEditData({...itemEditData, title: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--ink)' }} />
+                  <input required type="text" value={itemEditData.title} onChange={e => setItemEditData({ ...itemEditData, title: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--ink)' }} />
                 </div>
                 <div style={{ marginBottom: '16px' }}>
                   <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: 'var(--ink2)' }}>Price</label>
                   <div style={{ position: 'relative' }}>
                     <span style={{ position: 'absolute', left: '12px', top: '10px', color: 'var(--ink3)' }}>₹</span>
-                    <input required type="number" step="0.01" value={itemEditData.price} onChange={e => setItemEditData({...itemEditData, price: e.target.value})} style={{ width: '100%', padding: '10px 10px 10px 28px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--ink)' }} />
+                    <input required type="number" step="0.01" value={itemEditData.price} onChange={e => setItemEditData({ ...itemEditData, price: e.target.value })} style={{ width: '100%', padding: '10px 10px 10px 28px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--ink)' }} />
                   </div>
                 </div>
                 <div style={{ marginBottom: '24px' }}>
                   <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: 'var(--ink2)' }}>Description</label>
-                  <textarea rows={4} value={itemEditData.description} onChange={e => setItemEditData({...itemEditData, description: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--ink)' }} />
+                  <textarea rows={4} value={itemEditData.description} onChange={e => setItemEditData({ ...itemEditData, description: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--ink)' }} />
                 </div>
                 <div style={{ display: 'flex', gap: '12px' }}>
                   <button type="submit" style={{ flex: 1, padding: '12px', borderRadius: '8px', background: 'var(--accent)', color: 'white', border: 'none', fontWeight: '600', cursor: 'pointer' }}>Save Changes</button>

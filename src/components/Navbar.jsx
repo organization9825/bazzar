@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { supabase, getMyChats } from '../lib/supabase'
+import { supabase, getMyChats, getMapSellers, getProfile } from '../lib/supabase'
 import {
   requestNotificationPermission,
   showBrowserNotification,
@@ -194,10 +194,18 @@ export default function Navbar() {
           {/* ── Desktop Nav ───────────────────────────────── */}
           <div className="nav-desktop" style={{ display: 'none', alignItems: 'center', gap: 6 }}>
             {[
-              { label: 'Browse', path: '/' },
-              { label: 'Map',    path: '/map' },
-            ].map(({ label, path }) => (
-              <Link key={path} to={path} className={`nav-link ${isActive(path) ? 'active' : ''}`} style={{ color: 'var(--ink2)' }}>{label}</Link>
+              { label: 'Browse', path: '/', onHover: () => {} },
+              { label: 'Map',    path: '/map', onHover: () => getMapSellers().catch(() => {}) },
+            ].map(({ label, path, onHover }) => (
+              <Link 
+                key={path} 
+                to={path} 
+                onMouseEnter={onHover}
+                className={`nav-link ${isActive(path) ? 'active' : ''}`} 
+                style={{ color: 'var(--ink2)' }}
+              >
+                {label}
+              </Link>
             ))}
 
             {user ? (
@@ -208,7 +216,13 @@ export default function Navbar() {
                   {unread > 0 && <span style={{ position: 'absolute', top: 4, right: 4, minWidth: 18, height: 18, borderRadius: 9, background: '#E53935', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', animation: 'pulse 1.5s ease infinite' }}>{unread}</span>}
                 </Link>
                 <Link to="/sell" style={{ padding: '8px 18px', borderRadius: 8, fontSize: 14, fontWeight: 600, background: 'var(--accent)', color: 'white', marginLeft: 4, textDecoration: 'none' }}>+ Sell</Link>
-                <Link to="/dashboard" style={{ width: 38, height: 38, borderRadius: '50%', background: 'var(--accent-bg)', border: '2px solid var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: 'var(--accent)', marginLeft: 8, textDecoration: 'none' }}>{user.email?.[0]?.toUpperCase() ?? 'U'}</Link>
+                <Link 
+                  to="/dashboard" 
+                  onMouseEnter={() => getProfile(user.id).catch(() => {})}
+                  style={{ width: 38, height: 38, borderRadius: '50%', background: 'var(--accent-bg)', border: '2px solid var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: 'var(--accent)', marginLeft: 8, textDecoration: 'none' }}
+                >
+                  {user.email?.[0]?.toUpperCase() ?? 'U'}
+                </Link>
                 <button onClick={handleSignOut} style={{ marginLeft: 12, fontSize: 13, background: 'none', border: 'none', color: 'var(--ink3)', cursor: 'pointer' }}>Sign out</button>
               </>
             ) : (

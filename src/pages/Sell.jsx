@@ -11,8 +11,6 @@ export default function Sell() {
   const [condition, setCondition] = useState('new')
   const [categoryId, setCategoryId] = useState('')
   const [photo, setPhoto] = useState(null)
-  const [location, setLocation] = useState(null)   // { lat, lng }
-  const [locationStatus, setLocationStatus] = useState('idle') // 'idle'|'asking'|'granted'|'denied'
 
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(false)
@@ -24,6 +22,11 @@ export default function Sell() {
     // Check authentication
     if (!user) {
       navigate('/login', { state: { message: 'You must be logged in to sell an item.' } })
+      return
+    }
+    if (!user.email_confirmed_at) {
+      navigate('/signup', { state: { email: user.email } })
+      return
     }
 
     // Load categories
@@ -53,8 +56,7 @@ export default function Sell() {
         condition,
         category_id: categoryId,
         is_active: true,
-        is_sold: false,
-        ...(location ? { lat: location.lat, lng: location.lng } : {})
+        is_sold: false
       }
       
       const newListing = await createListing(user.id, listingData)
@@ -254,49 +256,6 @@ export default function Sell() {
             )}
           </div>
 
-          {/* Location */}
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: 'var(--ink2)' }}>
-              Location <span style={{ fontWeight: 400, color: 'var(--ink3)', fontSize: '13px' }}>(optional — shows your listing on the map)</span>
-            </label>
-            {locationStatus === 'granted' && location ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderRadius: '10px', background: 'var(--green-bg)', border: '1px solid #b7dfca' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                <span style={{ fontSize: '14px', color: 'var(--green)', fontWeight: 600 }}>Location captured</span>
-                <span style={{ fontSize: '13px', color: 'var(--ink3)', marginLeft: 4 }}>({location.lat.toFixed(4)}, {location.lng.toFixed(4)})</span>
-                <button type="button" onClick={() => { setLocation(null); setLocationStatus('idle') }} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--ink3)', cursor: 'pointer', fontSize: '18px' }}>×</button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                disabled={locationStatus === 'asking'}
-                onClick={() => {
-                  setLocationStatus('asking')
-                  navigator.geolocation.getCurrentPosition(
-                    pos => {
-                      setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-                      setLocationStatus('granted')
-                    },
-                    () => setLocationStatus('denied'),
-                    { enableHighAccuracy: true }
-                  )
-                }}
-                style={{
-                  width: '100%', padding: '12px 16px', borderRadius: '10px',
-                  border: `1.5px dashed ${locationStatus === 'denied' ? '#c62828' : 'var(--border)'}`,
-                  background: locationStatus === 'denied' ? '#ffebee' : 'var(--bg2)',
-                  color: locationStatus === 'denied' ? '#c62828' : 'var(--ink2)',
-                  fontSize: '15px', fontWeight: '500', cursor: locationStatus === 'asking' ? 'not-allowed' : 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.2s',
-                }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-                {locationStatus === 'asking' ? 'Requesting location…'
-                  : locationStatus === 'denied' ? '⚠ Location access denied — try again'
-                  : '📍 Add my location to show on map'}
-              </button>
-            )}
-          </div>
 
           <button 
             type="submit" 

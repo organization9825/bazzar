@@ -14,12 +14,16 @@ export const supabase = createClient(
 const _cache = {
   categories: null,
   listings: {}, // key: JSON.stringify(opts)
+  listingDetails: {}, // key: listingId
+  profiles: {}, // key: userId
   expiry: 1000 * 60 * 5 // 5 minutes default
 }
 
 export function clearCache() {
   _cache.categories = null
   _cache.listings = {}
+  _cache.listingDetails = {}
+  _cache.profiles = {}
 }
 
 
@@ -59,12 +63,19 @@ export async function getSession() {
 
 // Get a seller's profile by user ID
 export async function getProfile(userId) {
+  const cached = _cache.profiles[userId]
+  if (cached && (Date.now() - cached.timestamp < _cache.expiry)) {
+    return cached.data
+  }
+
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', userId)
     .single()
   if (error) throw error
+
+  _cache.profiles[userId] = { data, timestamp: Date.now() }
   return data
 }
 
@@ -122,7 +133,7 @@ export async function getListings(opts = {}) {
     .from('listings')
     .select(`
       id, title, description, price, condition, created_at, lat, lng,
-      seller:profiles(id, full_name, avatar_url, city),
+      seller:profiles(id, full_name, avatar_url, city, lat, lng),
       category:categories(name, slug),
       images:listing_images(public_url, is_primary)
     `)
@@ -144,6 +155,11 @@ export async function getListings(opts = {}) {
 
 // Get a single listing with all images
 export async function getListing(listingId) {
+  const cached = _cache.listingDetails[listingId]
+  if (cached && (Date.now() - cached.timestamp < _cache.expiry)) {
+    return cached.data
+  }
+
   const { data, error } = await supabase
     .from('listings')
     .select(`
@@ -155,7 +171,19 @@ export async function getListing(listingId) {
     .eq('id', listingId)
     .single()
   if (error) throw error
+  
+  _cache.listingDetails[listingId] = { data, timestamp: Date.now() }
   return data
+}
+
+// Utility to get optimized Supabase image URL
+// Usage: getOptimizedUrl(publicUrl, 400)
+export function getOptimizedUrl(url, width = 450) {
+  if (!url) return ''
+  if (!url.includes('supabase.co')) return url
+  // Appends Supabase's built-in transformation (if supported by project settings)
+  // Otherwise it's ready for future CDN-level optimization.
+  return `${url}?width=${width}&quality=80&resize=contain`
 }
 
 // Get all listings by a specific seller (for their dashboard)
@@ -176,7 +204,6 @@ export async function getMyListings(sellerId) {
 // LISTINGS — create, update, delete
 // ============================================================
 
-// Create a new listing
 export async function createListing(sellerId, listingData) {
   const { data, error } = await supabase
     .from('listings')
@@ -184,6 +211,7 @@ export async function createListing(sellerId, listingData) {
     .select()
     .single()
   if (error) throw error
+  clearCache()
   return data
 }
 
@@ -199,6 +227,7 @@ export async function updateListing(listingId, updates) {
   if (!data || data.length === 0) {
     throw new Error('Update failed: No row updated. This might be due to permissions (RLS).')
   }
+  clearCache()
   return data[0]
 }
 
@@ -209,17 +238,16 @@ export async function deleteListing(listingId) {
     .delete()
     .eq('id', listingId)
   if (error) throw error
+  clearCache()
 }
 
 // Mark a listing as sold
 export async function markAsSold(listingId) {
-  clearCache()
   return updateListing(listingId, { is_sold: true })
 }
 
 // Mark a listing as active again
 export async function markAsActive(listingId) {
-  clearCache()
   return updateListing(listingId, { is_sold: false })
 }
 
@@ -294,6 +322,40 @@ export async function getSellersNearMe(lat, lng, radiusKm = 10) {
   })
   if (error) throw error
   return data
+}
+
+// Fetch all sellers that have at least one active listing, including their location and listings.
+// This is used for the map to ensure all active sellers are discoverable.
+export async function getMapSellers() {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select(`
+      id, full_name, avatar_url, city, lat, lng,
+      listings!inner(
+        id, title, price, is_active, is_sold,
+        images:listing_images(public_url, is_primary)
+      )
+    `)
+    .not('lat', 'is', null)
+    .not('lng', 'is', null)
+    .eq('listings.is_active', true)
+    .eq('listings.is_sold', false)
+
+  if (error) throw error
+  
+  // PostgREST's !inner join might return the same profile multiple times if it has many listings.
+  // We need to deduplicate them manually if necessary, or ensure the query returns unique profiles.
+  const uniqueSellers = []
+  const seenIds = new Set()
+  
+  for (const seller of (data || [])) {
+    if (!seenIds.has(seller.id)) {
+      uniqueSellers.push(seller)
+      seenIds.add(seller.id)
+    }
+  }
+
+  return uniqueSellers
 }
 
 // Get user's current browser location (returns Promise<{lat, lng}>)
@@ -460,4 +522,4 @@ export async function getUnreadCounts(userId, lastReadMap) {
   })
   return counts
 }
-
+

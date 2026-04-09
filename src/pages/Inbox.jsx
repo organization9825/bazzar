@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, memo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   getMyChats, getChatMessages,
@@ -187,7 +187,7 @@ function Avatar({ user, size = 46 }) {
 }
 
 // ─── Chat Row ─────────────────────────────────────────────────
-function ChatRow({ chat, me, isActive, unread, latestAt, onClick }) {
+const ChatRow = memo(function ChatRow({ chat, me, isActive, unread, latestAt, onClick }) {
   const other    = chat.buyer.id === me.id ? chat.seller : chat.buyer
   const hasUnread = unread > 0
   const cls = ['chat-row', isActive && 'active', hasUnread && !isActive && 'unread'].filter(Boolean).join(' ')
@@ -214,7 +214,7 @@ function ChatRow({ chat, me, isActive, unread, latestAt, onClick }) {
       </div>
     </button>
   )
-}
+})
 
 // ─── Message Bubble ───────────────────────────────────────────
 function Bubble({ text, isMine, time }) {
@@ -254,24 +254,30 @@ function ChatWindow({ chat, me, myKeys, onBack, onMarkRead }) {
       onMarkRead(chat.id)                        // mark as read immediately
       if (subRef.current) { subRef.current.unsubscribe(); subRef.current = null }
 
-      // Derive shared key
+      // Parallelize key derivation and message fetch
       let sk = null
-      if (other.public_key && myKeys?.privateKey) {
-        try {
-          const theirPub = await importPublicKey(other.public_key)
-          sk = await deriveSharedKey(myKeys.privateKey, theirPub)
-          if (!cancelled) setSharedKey(sk)
-        } catch (e) {
-          console.error('Key derivation error', e)
-          if (!cancelled) setKeyError(true)
-        }
-      } else {
-        if (!cancelled) setKeyError(!other.public_key)
-      }
+      const [derivedKeyResult, raw] = await Promise.all([
+        (async () => {
+          if (other.public_key && myKeys?.privateKey) {
+            try {
+              const theirPub = await importPublicKey(other.public_key)
+              return await deriveSharedKey(myKeys.privateKey, theirPub)
+            } catch (e) {
+              console.error('Key derivation error', e)
+              if (!cancelled) setKeyError(true)
+            }
+          } else {
+            if (!cancelled) setKeyError(!other.public_key)
+          }
+          return null
+        })(),
+        getChatMessages(chat.id)
+      ])
 
-      // Load history
-      const raw = await getChatMessages(chat.id)
+      sk = derivedKeyResult
       if (cancelled) return
+      setSharedKey(sk)
+
       const decoded = await Promise.all(raw.map(async m => ({ ...m, text: await dec(m, sk) })))
       if (!cancelled) { setMessages(decoded); setLoading(false) }
 
@@ -419,27 +425,32 @@ export default function Inbox() {
       navigate('/login')
       return 
     }
+    if (!user.email_confirmed_at) {
+      navigate('/signup', { state: { email: user.email } })
+      return
+    }
     
     async function init() {
       const uid = user
       setMe(uid)
       requestNotificationPermission()
 
-      // Crypto keys per-user
-      const keys = await initCryptoKeys(uid.id)
-      setMyKeys(keys)
-      await savePublicKey(uid.id, keys.pubB64).catch(console.error)
+      // Parallelize initial load
+      const [keys, initialChats] = await Promise.all([
+        initCryptoKeys(uid.id),
+        getMyChats(uid.id).catch(() => [])
+      ])
 
-      // Load chats
-      const data = await getMyChats(uid.id).catch(() => [])
-      setChats(data)
+      setMyKeys(keys)
+      setChats(initialChats)
       setLoading(false)
 
-      // Build lastReadMap from localStorage
-      const lastReadMap = {}
-      data.forEach(c => { lastReadMap[c.id] = getLastRead(c.id) })
+      // Background tasks
+      savePublicKey(uid.id, keys.pubB64).catch(console.error)
 
-      // Fetch real unread counts from DB (one query)
+      // Fetch unread counts
+      const lastReadMap = {}
+      initialChats.forEach(c => { lastReadMap[c.id] = getLastRead(c.id) })
       const counts = await getUnreadCounts(uid.id, lastReadMap).catch(() => ({}))
       setUnreadMap(prev => ({ ...prev, ...counts }))
 

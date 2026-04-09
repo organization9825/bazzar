@@ -1,5 +1,6 @@
 import { useState, memo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { getOptimizedUrl } from '../lib/supabase'
 
 const CONDITION_COLORS = {
   new:       { bg: '#EAF4EF', color: '#2D6A4F' },
@@ -39,7 +40,7 @@ const ListingCard = memo(function ListingCard({ listing, index = 0 }) {
       }}>
         {primaryImage ? (
           <img 
-            src={primaryImage.public_url} 
+            src={getOptimizedUrl(primaryImage.public_url, 400)} 
             alt={listing.title}
             loading="lazy"
             style={{
@@ -98,8 +99,8 @@ const ListingCard = memo(function ListingCard({ listing, index = 0 }) {
             {listing.title}
           </h3>
           <span style={{
-            fontSize: 17, fontWeight: 700, color: 'var(--accent)',
-            flexShrink: 0, fontFamily: 'Playfair Display',
+            fontSize: 16, fontWeight: 700, color: 'var(--ink)',
+            flexShrink: 0,
           }}>
             ₹{Number(listing.price).toLocaleString()}
           </span>

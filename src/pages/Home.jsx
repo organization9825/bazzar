@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getListings, getCategories } from '../lib/supabase'
+import { supabase, getListings, getCategories, clearCache } from '../lib/supabase'
 import ListingCard from '../components/ListingCard'
 
 const HERO_WORDS = ['Furniture', 'Electronics', 'Clothing', 'Books', 'Vehicles', 'Collectibles', 'Crops']
@@ -106,6 +106,29 @@ export default function Home() {
     }, 300)
     return () => clearTimeout(timer)
   }, [search, activeCategory, sortBy, userPos, page])
+
+  // ── Realtime Sync ──
+  useEffect(() => {
+    const channel = supabase
+      .channel('public:listings')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'listings' }, () => {
+        clearCache()
+        // Silently re-fetch current orientation if page is visible
+        if (document.visibilityState === 'visible') {
+          const opts = { limit: PAGE_SIZE, offset: page * PAGE_SIZE }
+          if (activeCategory) opts.categoryId = activeCategory
+          if (search.trim()) opts.search = search.trim()
+          getListings(opts).then(data => {
+            if (data) setListings(data)
+          })
+        }
+      })
+      .subscribe()
+    
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [search, activeCategory, page])
 
   const handleSortChange = (e) => {
     const val = e.target.value

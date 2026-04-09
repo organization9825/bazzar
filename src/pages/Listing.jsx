@@ -7,10 +7,10 @@ export default function Listing() {
   const { id } = useParams()
   const { user } = useAuth()
   const navigate = useNavigate()
-  
-  const [listing,     setListing]     = useState(null)
-  const [loading,     setLoading]     = useState(true)
-  const [error,       setError]       = useState(null)
+
+  const [listing, setListing] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [activeImage, setActiveImage] = useState(null)
   const [chatLoading, setChatLoading] = useState(false)
 
@@ -56,22 +56,22 @@ export default function Listing() {
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       {/* Container */}
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px' }}>
-        
+
         {/* Back Button */}
-        <button 
+        <button
           onClick={() => navigate(-1)}
           style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'none', border: 'none', color: 'var(--ink3)', fontSize: '15px', fontWeight: '500', cursor: 'pointer', marginBottom: '24px' }}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 12H5M12 19l-7-7 7-7"/>
+            <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
           Back
         </button>
 
         {/* Two Column Layout container */}
-        <div style={{ 
-          display: 'flex', 
-          flexDirection: 'row', 
+        <div style={{
+          display: 'flex',
+          flexDirection: 'row',
           flexWrap: 'wrap',
           gap: '40px',
           background: 'var(--card)',
@@ -80,10 +80,10 @@ export default function Listing() {
           padding: '24px',
           boxShadow: 'var(--shadow)'
         }}>
-          
+
           {/* Left Column: Images */}
           <div style={{ flex: '1 1 400px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ 
+            <div style={{
               width: '100%', aspectRatio: '4/3', borderRadius: '12px', background: 'var(--bg2)', overflow: 'hidden',
               display: 'flex', alignItems: 'center', justifyContent: 'center'
             }}>
@@ -98,10 +98,10 @@ export default function Listing() {
             {listing.images?.length > 1 && (
               <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
                 {listing.images.map((img) => (
-                  <button 
+                  <button
                     key={img.id}
                     onClick={() => setActiveImage(img.public_url)}
-                    style={{ 
+                    style={{
                       width: '80px', height: '80px', flexShrink: 0, padding: 0,
                       borderRadius: '8px', overflow: 'hidden', cursor: 'pointer',
                       border: activeImage === img.public_url ? '2px solid var(--accent)' : '2px solid transparent',
@@ -135,8 +135,8 @@ export default function Listing() {
             <h1 style={{ fontSize: '32px', fontFamily: 'Playfair Display', color: 'var(--ink)', marginBottom: '8px', lineHeight: 1.2 }}>
               {listing.title}
             </h1>
-            
-            <div style={{ fontSize: '36px', fontWeight: '700', color: 'var(--accent)', fontFamily: 'Playfair Display', marginBottom: '24px' }}>
+
+            <div style={{ fontSize: '32px', fontWeight: '700', color: 'var(--ink)', marginBottom: '16px' }}>
               ₹{Number(listing.price).toLocaleString()}
             </div>
 
@@ -163,7 +163,7 @@ export default function Listing() {
                   {listing.seller?.city && (
                     <div style={{ fontSize: '14px', color: 'var(--ink2)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
                       <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
-                        <path d="M6 1C4.07 1 2.5 2.57 2.5 4.5C2.5 7.25 6 11 6 11C6 11 9.5 7.25 9.5 4.5C9.5 2.57 7.93 1 6 1ZM6 6C5.17 6 4.5 5.33 4.5 4.5C4.5 3.67 5.17 3 6 3C6.83 3 7.5 3.67 7.5 4.5C7.5 5.33 6.83 6 6 6Z" fill="currentColor"/>
+                        <path d="M6 1C4.07 1 2.5 2.57 2.5 4.5C2.5 7.25 6 11 6 11C6 11 9.5 7.25 9.5 4.5C9.5 2.57 7.93 1 6 1ZM6 6C5.17 6 4.5 5.33 4.5 4.5C4.5 3.67 5.17 3 6 3C6.83 3 7.5 3.67 7.5 4.5C7.5 5.33 6.83 6 6 6Z" fill="currentColor" />
                       </svg>
                       {listing.seller.city}
                     </div>
@@ -172,9 +172,9 @@ export default function Listing() {
               </div>
 
               <button
-                style={{ 
-                  width: '100%', padding: '14px 24px', borderRadius: '10px', 
-                  background: listing.is_sold ? 'var(--ink3)' : 'var(--accent)', 
+                style={{
+                  width: '100%', padding: '14px 24px', borderRadius: '10px',
+                  background: listing.is_sold ? 'var(--ink3)' : 'var(--accent)',
                   color: 'white', border: 'none', fontSize: '16px', fontWeight: '600',
                   cursor: listing.is_sold || chatLoading ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s'
@@ -184,6 +184,10 @@ export default function Listing() {
                 onMouseLeave={e => { if (!listing.is_sold) e.currentTarget.style.background = 'var(--accent)' }}
                 onClick={async () => {
                   if (!user) { navigate('/login'); return }
+                  if (!user.email_confirmed_at) {
+                    navigate('/signup', { state: { email: user.email } })
+                    return
+                  }
                   if (user.id === listing.seller?.id) return
                   setChatLoading(true)
                   try {
@@ -198,21 +202,25 @@ export default function Listing() {
               >
                 {listing.is_sold ? 'Item is Sold'
                   : chatLoading ? 'Opening chat…'
-                  : !user ? 'Sign in to Message Seller'
-                  : user.id === listing.seller?.id ? 'This is your listing'
-                  : 'Message Seller'}
+                    : !user ? 'Sign in to Message Seller'
+                      : user.id === listing.seller?.id ? 'This is your listing'
+                        : 'Message Seller'}
               </button>
 
-              {listing.lat && listing.lng && (
+              {(listing.seller?.lat || listing.lat) && (listing.seller?.lng || listing.lng) && (
                 <button
                   style={{
                     width: '100%', padding: '12px 24px', borderRadius: '10px', marginTop: '10px',
-                    background: 'transparent', color: 'var(--ink2)', border: '1px solid var(--border)', 
+                    background: 'transparent', color: 'var(--ink2)', border: '1px solid var(--border)',
                     fontSize: '15px', fontWeight: '600', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                     transition: 'all 0.2s'
                   }}
-                  onClick={() => navigate(`/map?lat=${listing.lat}&lng=${listing.lng}`)}
+                  onClick={() => {
+                    const lat = listing.lat || listing.seller?.lat
+                    const lng = listing.lng || listing.seller?.lng
+                    navigate(`/map?lat=${lat}&lng=${lng}&listing=${listing.id}`)
+                  }}
                   onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg)'; e.currentTarget.style.color = 'var(--ink)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--ink2)' }}
                 >

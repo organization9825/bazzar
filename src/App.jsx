@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
@@ -15,6 +15,7 @@ const MapPage       = lazy(() => import('./pages/Map'))
 const Inbox         = lazy(() => import('./pages/Inbox'))
 const Listing       = lazy(() => import('./pages/Listing'))
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'))
+const SetupProfile  = lazy(() => import('./pages/SetupProfile'))
 
 // Loading placeholder
 const PageLoader = () => (
@@ -27,6 +28,10 @@ const PageLoader = () => (
 function AppContent() {
   const location = useLocation()
   
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [location.pathname])
+
   // Hide footer on full-screen apps like Inbox and Map
   const hideFooter = ['/inbox', '/map'].includes(location.pathname)
 
@@ -44,6 +49,7 @@ function AppContent() {
             <Route path="/map"        element={<MapPage />} />
             <Route path="/inbox"      element={<Inbox />} />
             <Route path="/listing/:id" element={<Listing />} />
+            <Route path="/setup-profile" element={<SetupProfile />} />
             <Route path="/privacy"    element={<PrivacyPolicy />} />
           </Routes>
         </Suspense>
