@@ -38,11 +38,11 @@ export default defineConfig({
 
     // Minify with esbuild (default, fastest)
     minify: 'esbuild',
+  },
 
-    // Remove console.* and debugger in production
-    esbuildOptions: {
-      drop: ['console', 'debugger'],
-    },
+  // Drop console/debugger in production (top-level esbuild key — Vite 8)
+  esbuild: {
+    drop: ['console', 'debugger'],
   },
 
   // ── Dev server ───────────────────────────────────────────────
