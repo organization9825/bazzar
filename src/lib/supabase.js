@@ -50,6 +50,78 @@ export async function signOut() {
   return supabase.auth.signOut()
 }
 
+// Delete the current user's account and ALL associated data
+export async function deleteAccount(userId) {
+  // 1. Fetch all listing IDs for this user
+  const { data: listingRows } = await supabase
+    .from('listings')
+    .select('id')
+    .eq('seller_id', userId)
+  const listingIds = (listingRows || []).map(r => r.id)
+
+  if (listingIds.length > 0) {
+    // 2. Fetch storage paths of all listing images
+    const { data: imgRows } = await supabase
+      .from('listing_images')
+      .select('storage_path')
+      .in('listing_id', listingIds)
+
+    const paths = (imgRows || []).map(r => r.storage_path).filter(Boolean)
+    if (paths.length > 0) {
+      await supabase.storage.from('listing-images').remove(paths)
+    }
+
+    // 3. Delete listing_images rows
+    await supabase.from('listing_images').delete().in('listing_id', listingIds)
+
+    // 4. Delete messages in chats involving this user's listings
+    const { data: chatRows } = await supabase
+      .from('chats')
+      .select('id')
+      .in('listing_id', listingIds)
+    const chatIds = (chatRows || []).map(r => r.id)
+    if (chatIds.length > 0) {
+      await supabase.from('messages').delete().in('chat_id', chatIds)
+      await supabase.from('chats').delete().in('id', chatIds)
+    }
+
+    // 5. Delete listings
+    await supabase.from('listings').delete().eq('seller_id', userId)
+  }
+
+  // 6. Delete any chats where user is buyer (as buyer_id)
+  const { data: buyerChats } = await supabase
+    .from('chats')
+    .select('id')
+    .eq('buyer_id', userId)
+  const buyerChatIds = (buyerChats || []).map(r => r.id)
+  if (buyerChatIds.length > 0) {
+    await supabase.from('messages').delete().in('chat_id', buyerChatIds)
+    await supabase.from('chats').delete().in('id', buyerChatIds)
+  }
+
+  // 7. Delete avatar from storage
+  const { data: files } = await supabase.storage.from('avatars').list(userId)
+  if (files && files.length > 0) {
+    const avatarPaths = files.map(f => `${userId}/${f.name}`)
+    await supabase.storage.from('avatars').remove(avatarPaths)
+  }
+
+  // 8. Delete profile row
+  await supabase.from('profiles').delete().eq('id', userId)
+
+  // 9. Delete auth user — requires a SECURITY DEFINER RPC in Supabase:
+  //    CREATE OR REPLACE FUNCTION public.delete_user()
+  //    RETURNS void LANGUAGE sql SECURITY DEFINER AS $$
+  //      DELETE FROM auth.users WHERE id = auth.uid();
+  //    $$;
+  const { error: rpcError } = await supabase.rpc('delete_user')
+  if (rpcError) throw rpcError
+
+  // 10. Sign out locally
+  await supabase.auth.signOut()
+}
+
 // Get current session
 export async function getSession() {
   const { data } = await supabase.auth.getSession()
@@ -89,6 +161,7 @@ export async function updateProfile(userId, updates) {
     .select()
     .single()
   if (error) throw error
+  delete _cache.profiles[userId] // bust stale cache
   return data
 }
 

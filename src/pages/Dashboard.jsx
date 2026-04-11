@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { supabase, signOut, getProfile, getMyListings, updateProfile, markAsSold, markAsActive, deleteListing, updateListing } from '../lib/supabase'
+import { deleteAccount, getProfile, getMyListings, updateProfile, markAsSold, markAsActive, deleteListing, updateListing } from '../lib/supabase'
 import ListingCard from '../components/ListingCard'
 import { useAuth } from '../context/AuthContext'
 
@@ -113,19 +113,13 @@ export default function Dashboard() {
       alert('Name does not match. Please type your full name correctly.')
       return
     }
-
     setDeleting(true)
     try {
-      // 1. Delete profile from public table
-      const { error } = await supabase.from('profiles').delete().eq('id', user.id)
-      if (error) throw error
-
-      // 2. Sign out
-      await signOut()
-      navigate('/login', { state: { message: 'Your profile has been deleted successfully.' } })
+      await deleteAccount(user.id)
+      navigate('/login', { state: { message: 'Your account has been permanently deleted.' } })
     } catch (err) {
       console.error(err)
-      alert('Failed to delete profile: ' + err.message)
+      alert('Failed to delete account: ' + err.message)
     } finally {
       setDeleting(false)
     }
@@ -137,7 +131,7 @@ export default function Dashboard() {
       // Optimistic update
       setListings(prev => prev.filter(l => l.id !== id))
       setMessage('Removing listing...')
-      
+
       try {
         await deleteListing(id)
         setMessage('Listing deleted successfully!')
@@ -153,7 +147,7 @@ export default function Dashboard() {
     const oldListings = [...listings]
     // Optimistic update
     setListings(prev => prev.map(l => l.id === id ? { ...l, is_sold: !currentStatus } : l))
-    
+
     try {
       if (currentStatus) {
         await markAsActive(id)
@@ -432,14 +426,14 @@ export default function Dashboard() {
           {/* Dangerous Zone */}
           <div style={{ marginTop: '64px', paddingTop: '32px', borderTop: '1px solid var(--border)' }}>
             <h3 style={{ fontSize: '18px', color: '#DA3F3F', marginBottom: '8px' }}>Danger Zone</h3>
-            <p style={{ fontSize: '14px', color: 'var(--ink3)', marginBottom: '20px' }}>Once you delete your profile, there is no going back. Please be certain.</p>
+            <p style={{ fontSize: '14px', color: 'var(--ink3)', marginBottom: '20px' }}>Once you delete your account, all your data — listings, messages, and profile — will be permanently removed.</p>
             <button
               onClick={() => setShowDeleteModal(true)}
               style={{ padding: '12px 24px', borderRadius: '10px', background: 'none', border: '1.5px solid #F8D7DA', color: '#DA3F3F', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }}
               onMouseEnter={e => { e.currentTarget.style.background = '#FDF2F2' }}
               onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
             >
-              Delete Profile
+              Delete Account
             </button>
           </div>
         </div>
@@ -448,9 +442,10 @@ export default function Dashboard() {
         {showDeleteModal && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '24px' }}>
             <div style={{ background: 'var(--card)', padding: '40px', borderRadius: '24px', width: '100%', maxWidth: '440px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', animation: 'fadeUp 0.3s ease' }}>
-              <h2 style={{ fontSize: '24px', color: 'var(--ink)', marginBottom: '12px' }}>Delete Profile?</h2>
+              <h2 style={{ fontSize: '24px', color: '#DA3F3F', marginBottom: '12px' }}>Delete Account?</h2>
               <p style={{ color: 'var(--ink3)', fontSize: '15px', lineHeight: '1.6', marginBottom: '24px' }}>
-                This will permanently remove your profile and personal data. To confirm, please type your full name: <strong style={{ color: 'var(--ink)' }}>{profile.full_name}</strong>
+                This will permanently delete your account, all listings, messages, and profile data. <strong>This cannot be undone.</strong>
+                <br /><br />To confirm, type your full name: <strong style={{ color: 'var(--ink)' }}>{profile.full_name}</strong>
               </p>
 
               <form onSubmit={handleDeleteProfile}>
@@ -480,7 +475,7 @@ export default function Dashboard() {
                     disabled={deleting || confirmName.trim() !== profile.full_name}
                     style={{ flex: 1, padding: '14px', borderRadius: '12px', background: '#DA3F3F', color: 'white', border: 'none', fontWeight: '700', cursor: 'pointer', opacity: (deleting || confirmName.trim() !== profile.full_name) ? 0.5 : 1 }}
                   >
-                    {deleting ? 'Deleting...' : 'Delete Profile'}
+                    {deleting ? 'Deleting...' : 'Delete Account'}
                   </button>
                 </div>
               </form>

@@ -284,41 +284,66 @@ export default function Home() {
       </section>
 
       {/* ── Category Filter Chips ── */}
-      <section style={{ background: 'var(--bg2)', borderBottom: '1px solid var(--border)', padding: '0 24px' }}>
-        <div style={{
-          maxWidth: 1200, margin: '0 auto',
-          display: 'flex', alignItems: 'center', gap: 8,
-          overflowX: 'auto', padding: '14px 0',
-          scrollbarWidth: 'none',
-        }}>
-          <button
-            onClick={() => setActiveCategory(null)}
-            style={{
-              padding: '8px 18px', borderRadius: 20, fontSize: 13, fontWeight: 500,
-              border: `1.5px solid ${!activeCategory ? 'var(--accent)' : 'var(--border)'}`,
-              background: !activeCategory ? 'var(--accent)' : 'var(--card)',
-              color: !activeCategory ? 'white' : 'var(--ink2)',
-              whiteSpace: 'nowrap', transition: 'all 0.2s', flexShrink: 0,
-            }}
-          >All items</button>
-
-          {categories.map(cat => (
+      <section style={{ 
+        background: 'var(--bg2)', 
+        borderBottom: '1px solid var(--border)',
+        overflow: 'hidden'
+      }}>
+        <style>{`
+          .hide-scrollbar::-webkit-scrollbar { display: none; }
+        `}</style>
+        <div 
+          className="hide-scrollbar"
+          style={{
+            display: 'flex', 
+            justifyContent: 'center', // Centers when items don't overflow
+            overflowX: 'auto', 
+            padding: '16px 24px',
+            scrollbarWidth: 'none', msOverflowStyle: 'none',
+          }}
+        >
+          {/* Inner flex container with gap */}
+          <div style={{ 
+            display: 'flex', 
+            gap: 10, 
+            alignItems: 'center',
+            // Safety: when items overflow, margin-left: auto/margin-right: auto 
+            // can cause start-of-list clipping. flex-start is safer for overflow.
+            // But for small lists, margin: '0 auto' is perfect.
+            margin: '0 auto', 
+          }}>
             <button
-              key={cat.id}
-              onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
+              onClick={() => setActiveCategory(null)}
               style={{
-                padding: '8px 18px', borderRadius: 20, fontSize: 13, fontWeight: 500,
-                border: `1.5px solid ${activeCategory === cat.id ? 'var(--accent)' : 'var(--border)'}`,
-                background: activeCategory === cat.id ? 'var(--accent)' : 'var(--card)',
-                color: activeCategory === cat.id ? 'white' : 'var(--ink2)',
-                whiteSpace: 'nowrap', transition: 'all 0.2s', flexShrink: 0, cursor: 'pointer',
+                padding: '10px 22px', borderRadius: 24, fontSize: 13, fontWeight: 600,
+                border: `1.5px solid ${!activeCategory ? 'var(--accent)' : 'var(--border)'}`,
+                background: !activeCategory ? 'var(--accent)' : 'var(--card)',
+                color: !activeCategory ? 'white' : 'var(--ink2)',
+                whiteSpace: 'nowrap', transition: 'all 0.2s', flexShrink: 0,
+                cursor: 'pointer',
+                boxShadow: !activeCategory ? '0 4px 12px rgba(212,98,42,0.2)' : 'none',
               }}
-              onMouseEnter={e => { if (activeCategory !== cat.id) { e.currentTarget.style.borderColor = 'var(--accent2)'; e.currentTarget.style.color = 'var(--accent)' } }}
-              onMouseLeave={e => { if (activeCategory !== cat.id) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--ink2)' } }}
-            >
-              {cat.name}
-            </button>
-          ))}
+            >All items</button>
+
+            {categories.map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
+                style={{
+                  padding: '10px 22px', borderRadius: 24, fontSize: 13, fontWeight: 600,
+                  border: `1.5px solid ${activeCategory === cat.id ? 'var(--accent)' : 'var(--border)'}`,
+                  background: activeCategory === cat.id ? 'var(--accent)' : 'var(--card)',
+                  color: activeCategory === cat.id ? 'white' : 'var(--ink2)',
+                  whiteSpace: 'nowrap', transition: 'all 0.2s', flexShrink: 0, cursor: 'pointer',
+                  boxShadow: activeCategory === cat.id ? '0 4px 12px rgba(212,98,42,0.2)' : 'none',
+                }}
+                onMouseEnter={e => { if (activeCategory !== cat.id) { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)' } }}
+                onMouseLeave={e => { if (activeCategory !== cat.id) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--ink2)' } }}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
         </div>
       </section>
 

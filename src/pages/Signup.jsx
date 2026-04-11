@@ -99,7 +99,10 @@ export default function Signup() {
     setLoading(true)
     setGlobalError('')
     try {
-      const { error } = await supabase.auth.signUp({
+      // --- Signup + duplicate email detection ---
+      // Supabase does NOT throw on duplicate emails; instead it returns a user
+      // with an empty `identities` array. We check for that as our primary signal.
+      const { data, error } = await supabase.auth.signUp({
         email: form.email,
         password: form.password,
         options: {
@@ -108,7 +111,23 @@ export default function Signup() {
           }
         }
       })
-      if (error) throw error
+
+      if (error) {
+        // Catch Supabase's own duplicate-user signal as a string-match fallback
+        const msg = error.message?.toLowerCase() ?? ''
+        if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('user already')) {
+          setErrors(prev => ({ ...prev, email: 'This email is already registered. Please sign in instead.' }))
+          return
+        }
+        throw error
+      }
+
+      // Primary duplicate check: empty identities = email already in use
+      if (data?.user && data.user.identities && data.user.identities.length === 0) {
+        setErrors(prev => ({ ...prev, email: 'This email is already registered. Please sign in instead.' }))
+        return
+      }
+
       setStep(1)
     } catch (err) {
       setGlobalError(err.message)
@@ -171,7 +190,7 @@ export default function Signup() {
               {globalError && <div style={{ padding: '12px 16px', background: '#FDF2F2', border: '1px solid #F8D7DA', color: '#da3f3f', borderRadius: 8, fontSize: 13, marginBottom: 24 }}>{globalError}</div>}
 
               <form onSubmit={handleSignup}>
-                <Input label="Email address" type="email" value={form.email} onChange={set('email')} placeholder="john@example.com" required error={errors.email} />
+                <Input label="Email address" type="email" value={form.email} onChange={set('email')} placeholder="ashish@gmail.com" required error={errors.email} />
                 <Input label="Phone Number" type="tel" value={form.phone} onChange={set('phone')} placeholder="e.g. 9876543210" required error={errors.phone} />
                 <Input
                   label="Create Password"

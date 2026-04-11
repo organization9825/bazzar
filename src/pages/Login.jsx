@@ -102,7 +102,7 @@ export default function Login() {
           {error && <div style={{ padding: '12px 16px', background: '#FDF2F2', border: '1px solid #F8D7DA', color: '#da3f3f', borderRadius: 10, fontSize: 13, marginBottom: 24 }}>{error}</div>}
 
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column' }}>
-            <Input label="Email address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="john@example.com" required />
+            <Input label="Email address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ashish@gmail.com" required />
 
             <Input
               label="Password"
