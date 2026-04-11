@@ -35,14 +35,6 @@ export default defineConfig({
         assetFileNames: 'assets/[name]-[hash][extname]',
       },
     },
-
-    // Minify with esbuild (default, fastest)
-    minify: 'esbuild',
-  },
-
-  // Drop console/debugger in production (top-level esbuild key — Vite 8)
-  esbuild: {
-    drop: ['console', 'debugger'],
   },
 
   // ── Dev server ───────────────────────────────────────────────
