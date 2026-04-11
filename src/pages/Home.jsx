@@ -35,7 +35,7 @@ export default function Home() {
   const [sortBy, setSortBy] = useState('newest')
   const [page, setPage] = useState(0)
   const PAGE_SIZE = 12
-  
+
   // Real stats and location
   const [stats, setStats] = useState({ listings: null, sellers: null })
   const [userPos, setUserPos] = useState(null)
@@ -54,9 +54,9 @@ export default function Home() {
     if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return Infinity
     const p = 0.017453292519943295
     const c = Math.cos
-    const a = 0.5 - c((lat2 - lat1) * p)/2 + 
-            c(lat1 * p) * c(lat2 * p) * 
-            (1 - c((lon2 - lon1) * p))/2
+    const a = 0.5 - c((lat2 - lat1) * p) / 2 +
+      c(lat1 * p) * c(lat2 * p) *
+      (1 - c((lon2 - lon1) * p)) / 2
     return 12742 * Math.asin(Math.sqrt(a))
   }
 
@@ -88,8 +88,8 @@ export default function Home() {
       getListings(opts)
         .then(data => {
           let sorted = [...(data || [])]
-          if (sortBy === 'price_asc')  sorted.sort((a,b) => a.price - b.price)
-          if (sortBy === 'price_desc') sorted.sort((a,b) => b.price - a.price)
+          if (sortBy === 'price_asc') sorted.sort((a, b) => a.price - b.price)
+          if (sortBy === 'price_desc') sorted.sort((a, b) => b.price - a.price)
           if (sortBy === 'nearest' && userPos) {
             sorted.sort((a, b) => getDistance(userPos[0], userPos[1], a.lat, a.lng) - getDistance(userPos[0], userPos[1], b.lat, b.lng))
           }
@@ -118,7 +118,7 @@ export default function Home() {
         }
       })
       .subscribe()
-    
+
     return () => {
       supabase.removeChannel(channel)
     }
@@ -231,8 +231,8 @@ export default function Home() {
           }}>
             <div style={{ padding: '0 16px', display: 'flex', alignItems: 'center', color: 'var(--ink3)' }}>
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M12.5 12.5L16 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M12.5 12.5L16 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </div>
             <input
@@ -253,8 +253,8 @@ export default function Home() {
               border: 'none', fontSize: 15, fontWeight: 600,
               transition: 'background 0.2s',
             }}
-            onMouseEnter={e => e.currentTarget.style.background = '#C0561F'}
-            onMouseLeave={e => e.currentTarget.style.background = 'var(--accent)'}
+              onMouseEnter={e => e.currentTarget.style.background = '#C0561F'}
+              onMouseLeave={e => e.currentTarget.style.background = 'var(--accent)'}
             >Search</button>
           </form>
 
@@ -278,38 +278,41 @@ export default function Home() {
       </section>
 
       {/* ── Category Filter Chips ── */}
-      <section style={{ 
-        background: 'var(--bg2)', 
+      <section style={{
+        background: 'var(--bg2)',
         borderBottom: '1px solid var(--border)',
         overflow: 'hidden'
       }}>
         <style>{`
-          .hide-scrollbar::-webkit-scrollbar { display: none; }
+          .category-scroll::-webkit-scrollbar { display: none; }
+          .category-scroll {
+            display: flex;
+            overflow-x: auto;
+            padding: 16px 24px;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            justify-content: flex-start;
+            -webkit-overflow-scrolling: touch;
+          }
+          /* Center exactly when there is enough screen space for all items (computer view) */
+          @media (min-width: 1024px) {
+            .category-scroll {
+              justify-content: center;
+            }
+          }
         `}</style>
-        <div 
-          className="hide-scrollbar"
-          style={{
-            display: 'flex', 
-            justifyContent: 'center', // Centers when items don't overflow
-            overflowX: 'auto', 
-            padding: '16px 24px',
-            scrollbarWidth: 'none', msOverflowStyle: 'none',
-          }}
-        >
+        <div className="category-scroll">
           {/* Inner flex container with gap */}
-          <div style={{ 
-            display: 'flex', 
-            gap: 10, 
+          <div style={{
+            display: 'flex',
+            gap: 10,
             alignItems: 'center',
-            // Safety: when items overflow, margin-left: auto/margin-right: auto 
-            // can cause start-of-list clipping. flex-start is safer for overflow.
-            // But for small lists, margin: '0 auto' is perfect.
-            margin: '0 auto', 
+            width: 'max-content',
           }}>
             <button
               onClick={() => setActiveCategory(null)}
               style={{
-                padding: '10px 22px', borderRadius: 24, fontSize: 13, fontWeight: 600,
+                padding: '10px 22px', borderRadius: 24, fontSize: 13, fontWeight: 500,
                 border: `1.5px solid ${!activeCategory ? 'var(--accent)' : 'var(--border)'}`,
                 background: !activeCategory ? 'var(--accent)' : 'var(--card)',
                 color: !activeCategory ? 'white' : 'var(--ink2)',
@@ -324,7 +327,7 @@ export default function Home() {
                 key={cat.id}
                 onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
                 style={{
-                  padding: '10px 22px', borderRadius: 24, fontSize: 13, fontWeight: 600,
+                  padding: '10px 22px', borderRadius: 24, fontSize: 13, fontWeight: 500,
                   border: `1.5px solid ${activeCategory === cat.id ? 'var(--accent)' : 'var(--border)'}`,
                   background: activeCategory === cat.id ? 'var(--accent)' : 'var(--card)',
                   color: activeCategory === cat.id ? 'white' : 'var(--ink2)',
@@ -397,9 +400,9 @@ export default function Home() {
               alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px',
             }}>
               <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                <circle cx="14" cy="14" r="9" stroke="var(--ink3)" strokeWidth="2"/>
-                <path d="M21 21L28 28" stroke="var(--ink3)" strokeWidth="2" strokeLinecap="round"/>
-                <path d="M10 14H18M14 10V18" stroke="var(--ink3)" strokeWidth="1.5" strokeLinecap="round"/>
+                <circle cx="14" cy="14" r="9" stroke="var(--ink3)" strokeWidth="2" />
+                <path d="M21 21L28 28" stroke="var(--ink3)" strokeWidth="2" strokeLinecap="round" />
+                <path d="M10 14H18M14 10V18" stroke="var(--ink3)" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </div>
             <h3 style={{ fontSize: 20, fontFamily: 'Playfair Display', marginBottom: 8 }}>Nothing here yet</h3>
@@ -447,7 +450,7 @@ export default function Home() {
                 transition: 'all 0.2s',
               }}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6" /></svg>
             </button>
             <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink2)', minWidth: 80, textAlign: 'center' }}>
               Page {page + 1}
@@ -465,7 +468,7 @@ export default function Home() {
                 transition: 'all 0.2s',
               }}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6" /></svg>
             </button>
           </div>
         )}
