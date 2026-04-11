@@ -19,15 +19,15 @@ export default defineConfig({
       output: {
         // Manual chunk splitting — each vendor loads independently
         // and is cached by the browser between page loads
-        manualChunks: {
-          // React core — rarely changes, cached aggressively
-          'vendor-react': ['react', 'react-dom'],
-          // Router — separate from react so updates to one don't bust the other
-          'vendor-router': ['react-router-dom'],
-          // Supabase — large, changes rarely
-          'vendor-supabase': ['@supabase/supabase-js'],
-          // Leaflet map — only loaded when MapPage is visited
-          'vendor-leaflet': ['leaflet', 'react-leaflet'],
+        manualChunks(id) {
+          if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/'))
+            return 'vendor-react'
+          if (id.includes('node_modules/react-router'))
+            return 'vendor-router'
+          if (id.includes('node_modules/@supabase'))
+            return 'vendor-supabase'
+          if (id.includes('node_modules/leaflet') || id.includes('node_modules/react-leaflet'))
+            return 'vendor-leaflet'
         },
         // Content-hash filenames → permanent browser caching
         chunkFileNames: 'assets/[name]-[hash].js',
