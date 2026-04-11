@@ -71,7 +71,7 @@ export default function Dashboard() {
       }
     }
     loadDashboard()
-  }, [navigate])
+  }, [user, navigate])
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault()

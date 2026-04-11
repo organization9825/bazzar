@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase, getListings, getCategories, clearCache } from '../lib/supabase'
+import { supabase, getListings, getCategories, clearCache, getStats } from '../lib/supabase'
 import ListingCard from '../components/ListingCard'
 
 const HERO_WORDS = ['Furniture', 'Electronics', 'Clothing', 'Books', 'Vehicles', 'Collectibles', 'Crops']
@@ -75,13 +75,7 @@ export default function Home() {
   // Fetch categories & real stats
   useEffect(() => {
     getCategories().then(setCategories).catch(console.error)
-    
-    getListings({ limit: 1000 }).then(data => {
-      if (data) {
-        const sellerIds = new Set(data.map(d => d.seller?.id).filter(Boolean))
-        setStats({ listings: data.length, sellers: sellerIds.size })
-      }
-    }).catch(console.error)
+    getStats().then(setStats).catch(console.error)
   }, [])
 
   // Fetch listings
@@ -270,8 +264,8 @@ export default function Home() {
             animation: 'fadeUp 0.5s ease 0.4s both',
           }}>
             {[
-              { num: stats.listings !== null ? stats.listings : '-', label: 'Active listings' },
-              { num: stats.sellers !== null ? stats.sellers : '-', label: 'Local sellers' },
+              { num: stats.listings ?? '—', label: 'Active listings' },
+              { num: stats.sellers ?? '—', label: 'Local sellers' },
               { num: 'Free', label: 'To list & browse' },
             ].map(({ num, label }) => (
               <div key={label} style={{ textAlign: 'center' }}>

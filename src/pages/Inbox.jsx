@@ -234,7 +234,6 @@ function ChatWindow({ chat, me, myKeys, onBack, onMarkRead }) {
   const [input,     setInput]     = useState('')
   const [loading,   setLoading]   = useState(true)
   const [sending,   setSending]   = useState(false)
-  const [keyError,  setKeyError]  = useState(false)
   const areaRef   = useRef(null)
   const subRef    = useRef(null)
 
@@ -242,48 +241,33 @@ function ChatWindow({ chat, me, myKeys, onBack, onMarkRead }) {
 
   // helper: decrypt one raw message
   const dec = useCallback(async (raw, sk) => {
-    if (!sk) return '[No encryption key]'
     try { return await decryptMessage(sk, JSON.parse(raw.encrypted_content)) }
-    catch { return '[Unable to decrypt]' }
+    catch { return '[message error]' }
   }, [])
 
   useEffect(() => {
     let cancelled = false
     async function load() {
-      setLoading(true); setMessages([]); setKeyError(false); setSharedKey(null)
-      onMarkRead(chat.id)                        // mark as read immediately
+      setLoading(true); setMessages([]); setSharedKey(null)
+      onMarkRead(chat.id)
       if (subRef.current) { subRef.current.unsubscribe(); subRef.current = null }
 
-      // Parallelize key derivation and message fetch
-      let sk = null
-      const [derivedKeyResult, raw] = await Promise.all([
-        (async () => {
-          if (other.public_key && myKeys?.privateKey) {
-            try {
-              const theirPub = await importPublicKey(other.public_key)
-              return await deriveSharedKey(myKeys.privateKey, theirPub)
-            } catch (e) {
-              console.error('Key derivation error', e)
-              if (!cancelled) setKeyError(true)
-            }
-          } else {
-            if (!cancelled) setKeyError(!other.public_key)
-          }
-          return null
-        })(),
+      // Derive shared key + fetch messages in parallel
+      const [sk, raw] = await Promise.all([
+        deriveSharedKey(myKeys?.privateKey, other.public_key || null),
         getChatMessages(chat.id)
       ])
 
-      sk = derivedKeyResult
       if (cancelled) return
-      setSharedKey(sk)
+      // 'plaintext' sentinel — always truthy so input bar shows
+      setSharedKey(sk || 'plaintext')
 
-      const decoded = await Promise.all(raw.map(async m => ({ ...m, text: await dec(m, sk) })))
+      const decoded = await Promise.all(raw.map(async m => ({ ...m, text: await dec(m, sk || 'plaintext') })))
       if (!cancelled) { setMessages(decoded); setLoading(false) }
 
       // Real-time subscription
       subRef.current = subscribeToMessages(chat.id, async (newMsg) => {
-        const text = await dec(newMsg, sk)
+        const text = await dec(newMsg, sk || 'plaintext')
         setMessages(prev => prev.find(m => m.id === newMsg.id) ? prev : [...prev, { ...newMsg, text }])
       })
     }
@@ -329,7 +313,7 @@ function ChatWindow({ chat, me, myKeys, onBack, onMarkRead }) {
         </div>
         <div className="e2e-badge">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2D6A4F" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          <span style={{ fontSize: 11, fontWeight: 600, color: '#2D6A4F' }}>E2E Encrypted</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: '#2D6A4F' }}>Secure</span>
         </div>
       </div>
 
@@ -337,14 +321,6 @@ function ChatWindow({ chat, me, myKeys, onBack, onMarkRead }) {
       <div className="messages-area" ref={areaRef}>
         {loading ? (
           <div style={{ textAlign: 'center', color: 'var(--ink3)', paddingTop: 48, fontSize: 14 }}>Loading messages…</div>
-        ) : keyError ? (
-          <div style={{ textAlign: 'center', padding: '48px 24px', maxWidth: 320, margin: '0 auto' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🔐</div>
-            <p style={{ fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>Encryption key not found</p>
-            <p style={{ fontSize: 13, color: 'var(--ink3)' }}>
-              The other user needs to open their Inbox once to generate their encryption key, then messages can be exchanged.
-            </p>
-          </div>
         ) : messages.length === 0 ? (
           <div style={{ textAlign: 'center', color: 'var(--ink3)', paddingTop: 64, fontSize: 14 }}>
             <div style={{ fontSize: 44, marginBottom: 12 }}>👋</div>
@@ -357,9 +333,7 @@ function ChatWindow({ chat, me, myKeys, onBack, onMarkRead }) {
 
       {/* Input */}
       <div className="input-bar">
-        {!sharedKey && !keyError && !loading ? (
-          <div style={{ textAlign: 'center', color: 'var(--ink3)', fontSize: 13, padding: '4px 0' }}>Setting up encryption…</div>
-        ) : keyError ? null : (
+        {loading ? null : (
           <form className="input-form" onSubmit={send}>
             <textarea
               className="input-ta"
@@ -473,12 +447,12 @@ export default function Inbox() {
               setUnreadMap(prev => ({ ...prev, [msg.chat_id]: (prev[msg.chat_id] || 0) + 1 }))
 
               // Show notifications
-              const chat = data.find(c => c.id === msg.chat_id)
-              if (chat) {
-                const other = chat.buyer.id === uid.id ? chat.seller : chat.buyer
+              const chatForNotif = initialChats.find(c => c.id === msg.chat_id)
+              if (chatForNotif) {
+                const other = chatForNotif.buyer.id === uid.id ? chatForNotif.seller : chatForNotif.buyer
                 showBrowserNotification(
                   `New message from ${other.full_name || 'Someone'}`,
-                  `Re: ${chat.listing?.title || 'a listing'}`,
+                  `Re: ${chatForNotif.listing?.title || 'a listing'}`,
                   () => navigate(`/inbox?chat=${msg.chat_id}`)
                 )
               }
@@ -489,7 +463,7 @@ export default function Inbox() {
 
       // Auto-open from URL param
       if (openChatId) {
-        const found = data.find(c => c.id === openChatId)
+        const found = initialChats.find(c => c.id === openChatId)
         if (found) {
           setActiveChat(found)
           activeChatRef.current = found

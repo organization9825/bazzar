@@ -16,6 +16,7 @@ const Inbox         = lazy(() => import('./pages/Inbox'))
 const Listing       = lazy(() => import('./pages/Listing'))
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'))
 const SetupProfile  = lazy(() => import('./pages/SetupProfile'))
+const ResetPassword = lazy(() => import('./pages/ResetPassword'))
 
 // Loading placeholder
 const PageLoader = () => (
@@ -50,6 +51,7 @@ function AppContent() {
             <Route path="/inbox"      element={<Inbox />} />
             <Route path="/listing/:id" element={<Listing />} />
             <Route path="/setup-profile" element={<SetupProfile />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/privacy"    element={<PrivacyPolicy />} />
           </Routes>
         </Suspense>

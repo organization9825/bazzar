@@ -24,6 +24,23 @@ export function clearCache() {
   _cache.listings = {}
   _cache.listingDetails = {}
   _cache.profiles = {}
+  _cache.stats = null
+}
+
+// Efficient counts — fetches ZERO data rows, just header counts
+export async function getStats() {
+  if (_cache.stats && (Date.now() - _cache.stats.timestamp < _cache.expiry)) {
+    return _cache.stats.data
+  }
+  const [{ count: listings }, { count: sellers }] = await Promise.all([
+    supabase.from('listings').select('id', { count: 'exact', head: true })
+      .eq('is_active', true).eq('is_sold', false),
+    supabase.from('profiles').select('id', { count: 'exact', head: true })
+      .not('full_name', 'is', null),
+  ])
+  const data = { listings: listings ?? 0, sellers: sellers ?? 0 }
+  _cache.stats = { data, timestamp: Date.now() }
+  return data
 }
 
 
